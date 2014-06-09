@@ -40,5 +40,7 @@
     <string name="CANNOT_GET_LINKED_NOTEBOOK">Cannot get linked notebook</string>
     <string name="CANT_LIST_APP_LNB">Can\'t select notebook: account can only access one linked notebook</string>
     <string name="ERROR_GETTING_LINKED_NOTEBOOK">Error getting linked notebook</string>
+    <string name="title_activity_note_list">NoteListActivity</string>
+    <string name="hello_world">Hello world!</string>
 
 </resources>

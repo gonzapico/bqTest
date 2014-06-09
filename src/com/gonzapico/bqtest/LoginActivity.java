@@ -1,5 +1,8 @@
 package com.gonzapico.bqtest;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import android.animation.Animator;
 import android.animation.AnimatorListenerAdapter;
 import android.annotation.TargetApi;
@@ -8,14 +11,24 @@ import android.content.Intent;
 import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
-import android.text.TextUtils;
-import android.view.KeyEvent;
+import android.util.Log;
 import android.view.View;
-import android.view.inputmethod.EditorInfo;
-import android.widget.EditText;
 import android.widget.TextView;
 
 import com.evernote.client.android.EvernoteSession;
+import com.evernote.edam.error.EDAMNotFoundException;
+import com.evernote.edam.error.EDAMSystemException;
+import com.evernote.edam.error.EDAMUserException;
+import com.evernote.edam.notestore.NoteFilter;
+import com.evernote.edam.notestore.NoteMetadata;
+import com.evernote.edam.notestore.NoteStore;
+import com.evernote.edam.notestore.NotesMetadataList;
+import com.evernote.edam.notestore.NotesMetadataResultSpec;
+import com.evernote.edam.type.Notebook;
+import com.evernote.thrift.TException;
+import com.evernote.thrift.protocol.TBinaryProtocol;
+import com.evernote.thrift.transport.THttpClient;
+import com.evernote.thrift.transport.TTransportException;
 
 /**
  * Activity which displays a login screen to the user, offering registration as
@@ -26,23 +39,7 @@ import com.evernote.client.android.EvernoteSession;
  */
 public class LoginActivity extends ParentActivity {
 
-	/**
-	 * The default email to populate the email field with.
-	 */
-	public static final String EXTRA_EMAIL = "com.example.android.authenticatordemo.extra.EMAIL";
-
-	/**
-	 * Keep track of the login task to ensure we can cancel it if requested.
-	 */
-	private UserLoginTask mAuthTask = null;
-
-	// Values for email and password at the time of the login attempt.
-	private String mEmail;
-	private String mPassword;
-
 	// UI references.
-	private EditText mEmailView;
-	private EditText mPasswordView;
 	private View mLoginFormView;
 	private View mLoginStatusView;
 	private TextView mLoginStatusMessageView;
@@ -52,25 +49,6 @@ public class LoginActivity extends ParentActivity {
 		super.onCreate(savedInstanceState);
 
 		setContentView(R.layout.activity_login);
-
-		// Set up the login form.
-		mEmail = getIntent().getStringExtra(EXTRA_EMAIL);
-		mEmailView = (EditText) findViewById(R.id.email);
-		mEmailView.setText(mEmail);
-
-		mPasswordView = (EditText) findViewById(R.id.password);
-		mPasswordView
-				.setOnEditorActionListener(new TextView.OnEditorActionListener() {
-					@Override
-					public boolean onEditorAction(TextView textView, int id,
-							KeyEvent keyEvent) {
-						if (id == R.id.login || id == EditorInfo.IME_NULL) {
-							attemptLogin();
-							return true;
-						}
-						return false;
-					}
-				});
 
 		mLoginFormView = findViewById(R.id.login_form);
 		mLoginStatusView = findViewById(R.id.login_status);
@@ -86,58 +64,24 @@ public class LoginActivity extends ParentActivity {
 	}
 
 	/**
-	 * Attempts to sign in or register the account specified by the login form.
-	 * If there are form errors (invalid email, missing fields, etc.), the
-	 * errors are presented and no actual login attempt is made.
+	 * Attempts to sign in on Evernote.
 	 */
 	public void attemptLogin() {
-		if (mAuthTask != null) {
-			return;
-		}
 
-		// Reset errors.
-		mEmailView.setError(null);
-		mPasswordView.setError(null);
+		// Show a progress spinner, and kick off a background task to
+		// perform the user login attempt.
+		mLoginStatusMessageView.setText(R.string.login_progress_signing_in);
+		showProgress(true);
 
-		// Store values at the time of the login attempt.
-		mEmail = mEmailView.getText().toString();
-		mPassword = mPasswordView.getText().toString();
-
-		boolean cancel = false;
-		View focusView = null;
-
-		// Check for a valid password.
-		if (TextUtils.isEmpty(mPassword)) {
-			mPasswordView.setError(getString(R.string.error_field_required));
-			focusView = mPasswordView;
-			cancel = true;
-		} else if (mPassword.length() < 4) {
-			mPasswordView.setError(getString(R.string.error_invalid_password));
-			focusView = mPasswordView;
-			cancel = true;
-		}
-
-		// Check for a valid email address.
 		/*
-		 * if (TextUtils.isEmpty(mEmail)) {
-		 * mEmailView.setError(getString(R.string.error_field_required));
-		 * focusView = mEmailView; cancel = true; } else if
-		 * (!mEmail.contains("@")) {
-		 * mEmailView.setError(getString(R.string.error_invalid_email));
-		 * focusView = mEmailView; cancel = true; }
+		 * If the user isn't already logged in, then we authenticate him/her on
+		 * Evernote. Otherwise, we go to the next activity to show his/her notes
 		 */
-
-		if (cancel) {
-			// There was an error; don't attempt login and focus the first
-			// form field with an error.
-			focusView.requestFocus();
-		} else {
-			// Show a progress spinner, and kick off a background task to
-			// perform the user login attempt.
-			mLoginStatusMessageView.setText(R.string.login_progress_signing_in);
-			showProgress(true);
+		if (!mEvernoteSession.isLoggedIn())
 			mEvernoteSession.authenticate(this);
-		}
+		else
+			goToNoteList();
+
 	}
 
 	/**
@@ -182,41 +126,6 @@ public class LoginActivity extends ParentActivity {
 	}
 
 	/**
-	 * Represents an asynchronous login/registration task used to authenticate
-	 * the user.
-	 */
-	public class UserLoginTask extends AsyncTask<Void, Void, Boolean> {
-		@Override
-		protected Boolean doInBackground(Void... params) {
-
-			// We just need to authenticate the user
-			mEvernoteSession.authenticate(getApplicationContext());
-
-			return true;
-		}
-
-		@Override
-		protected void onPostExecute(final Boolean success) {
-			mAuthTask = null;
-			showProgress(false);
-
-			if (success) {
-				// finish();
-			} else {
-				mPasswordView
-						.setError(getString(R.string.error_incorrect_password));
-				mPasswordView.requestFocus();
-			}
-		}
-
-		@Override
-		protected void onCancelled() {
-			mAuthTask = null;
-			showProgress(false);
-		}
-	}
-
-	/**
 	 * Called when the control returns from an activity that we launched.
 	 */
 	@Override
@@ -230,8 +139,193 @@ public class LoginActivity extends ParentActivity {
 
 				// We launch a new activity to show a list of all the notes that
 				// the user have saved in Evernote
+				ListTask lTask = new ListTask();
+				lTask.execute((Void) null);
+
 			}
 			break;
 		}
 	}
+
+	/**
+	 * Represents an asynchronous login/registration task used to authenticate
+	 * the user.
+	 */
+	public class ListTask extends AsyncTask<Void, Void, ArrayList<Notebook>> {
+		@Override
+		protected ArrayList<Notebook> doInBackground(Void... params) {
+
+			String authToken = mEvernoteSession.getAuthenticationResult()
+					.getAuthToken();
+			String noteStoreUrl = mEvernoteSession.getAuthenticationResult()
+					.getNoteStoreUrl();
+
+			String userAgent = "ALTEN" + " " + "bqTest" + "/" + "1.0";
+
+			THttpClient noteStoreTrans = null;
+			try {
+				noteStoreTrans = new THttpClient(noteStoreUrl);
+			} catch (TTransportException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			// userStoreTrans.setCustomHeader("User-Agent", userAgent);
+			TBinaryProtocol noteStoreProt = new TBinaryProtocol(noteStoreTrans);
+			NoteStore.Client noteStore = new NoteStore.Client(noteStoreProt,
+					noteStoreProt);
+			List<Notebook> notebooks = new ArrayList<Notebook>();
+			try {
+				notebooks = noteStore.listNotebooks(authToken);
+			} catch (EDAMUserException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			} catch (EDAMSystemException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			} catch (TException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+
+			int pageSize = 10;
+
+			return (ArrayList<Notebook>) notebooks;
+		}
+
+		@Override
+		protected void onPostExecute(final ArrayList<Notebook> notas) {
+			String guid = "";
+			for (Notebook notebook : notas) {
+
+				Log.d("NOTAS", "Notebook: " + notebook.getName() + " y "
+						+ notebook.getSharedNotebooksSize());
+				guid = notebook.getGuid();
+
+			}
+
+			List2Task l2t = new List2Task();
+			l2t.execute(guid);
+		}
+
+		@Override
+		protected void onCancelled() {
+			showProgress(false);
+		}
+	}
+
+	public class List2Task extends AsyncTask<String, Void, NotesMetadataList> {
+		@Override
+		protected NotesMetadataList doInBackground(String... params) {
+
+			String authToken = mEvernoteSession.getAuthenticationResult()
+					.getAuthToken();
+			String noteStoreUrl = mEvernoteSession.getAuthenticationResult()
+					.getNoteStoreUrl();
+
+			String userAgent = "ALTEN" + " " + "bqTest" + "/" + "1.0";
+
+			THttpClient noteStoreTrans = null;
+			try {
+				noteStoreTrans = new THttpClient(noteStoreUrl);
+			} catch (TTransportException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			// userStoreTrans.setCustomHeader("User-Agent", userAgent);
+			TBinaryProtocol noteStoreProt = new TBinaryProtocol(noteStoreTrans);
+			NoteStore.Client noteStore = new NoteStore.Client(noteStoreProt,
+					noteStoreProt);
+
+			int pageSize = 10;
+
+			NoteFilter filter = new NoteFilter();
+			// filter.setOrder(NoteSortOrder.CREATED.getValue());
+			// filter.setNotebookGuid(params[0]);
+
+			NotesMetadataResultSpec spec = new NotesMetadataResultSpec();
+			spec.setIncludeTitle(true);
+			NotesMetadataList notes = new NotesMetadataList();
+
+			try {
+				/*
+				 * notes = noteStore.findNotesMetadata(authToken, filter, 0,
+				 * pageSize, spec);
+				 */
+				notes = noteStore.findNotesMetadata(authToken, filter, 0, 100,
+						spec);
+				int matchingNotes = notes.getTotalNotes();
+				Log.d("notas", "numero notas --> " + matchingNotes);
+				int notesThisPage = notes.getNotes().size();
+				Log.d("notas", "numero notas --> " + notesThisPage);
+
+			} catch (EDAMUserException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			} catch (EDAMSystemException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			} catch (EDAMNotFoundException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			} catch (TException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+
+			// findNotesByQuery("");
+			for (NoteMetadata note : notes.getNotes()) {
+				try {
+					Log.d("Notas copon",
+							note.getTitle()
+									+ " & "
+									+ noteStore
+											.getNote(authToken, note.getGuid(),
+													true, false, false, false)
+											.getContent().toString());
+				} catch (EDAMUserException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				} catch (EDAMSystemException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				} catch (EDAMNotFoundException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				} catch (TException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+
+			}
+
+			return notes;
+		}
+
+		@Override
+		protected void onPostExecute(final NotesMetadataList notes) {
+
+			for (NoteMetadata note : notes.getNotes()) {
+				Log.d("Notas copon",
+						note.getTitle() + " & " + note.getNotebookGuid());
+
+			}
+		}
+
+		@Override
+		protected void onCancelled() {
+			showProgress(false);
+		}
+	}
+
+	/***
+	 * Method to go the activity where we will show the list of the notes of the
+	 * user on Evernote
+	 */
+	public void goToNoteList() {
+		Intent intent = new Intent(this, NoteListActivity.class);
+		startActivity(intent);
+		showProgress(false);
+		finish();
+	}
+
 }

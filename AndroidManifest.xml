@@ -5,7 +5,7 @@
     android:versionName="1.0" >
 
     <uses-permission android:name="android.permission.INTERNET" />
-    
+
     <uses-sdk
         android:minSdkVersion="8"
         android:targetSdkVersion="17" />
@@ -17,18 +17,26 @@
         android:theme="@style/AppTheme" >
         <activity
             android:name="com.gonzapico.bqtest.LoginActivity"
-            android:label="@string/title_activity_login"
-            android:windowSoftInputMode="adjustResize|stateVisible" >
+            android:label="@string/app_name"
+            android:windowSoftInputMode="adjustResize|stateVisible"
+            android:noHistory="true" >
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        
         <activity
-                android:name="com.evernote.client.android.EvernoteOAuthActivity"
-            android:configChanges="orientation|keyboardHidden"/>
+            android:name="com.evernote.client.android.EvernoteOAuthActivity"
+            android:configChanges="orientation|keyboardHidden" />
+        <activity
+            android:name="com.gonzapico.bqtest.NoteListActivity"
+            android:label="@string/app_name"
+            android:parentActivityName="com.gonzapico.bqtest.LoginActivity" >
+            <meta-data
+                android:name="android.support.PARENT_ACTIVITY"
+                android:value="com.gonzapico.bqtest.LoginActivity" />
+        </activity>
     </application>
 
 </manifest>
