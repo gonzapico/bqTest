@@ -1,1 +1,5 @@
 In this document we are going to write out the documentation of the app.
+
+- LoginActivity
+In this screen we show the user the way to log in into the app. If it's the first time, he/she is logging in into the app, then he has to provide permissions to the app. The only valid accounts ar
+e sandbox accounts, not the real ones.
