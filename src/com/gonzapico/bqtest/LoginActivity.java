@@ -29,6 +29,7 @@ import com.evernote.thrift.TException;
 import com.evernote.thrift.protocol.TBinaryProtocol;
 import com.evernote.thrift.transport.THttpClient;
 import com.evernote.thrift.transport.TTransportException;
+import com.gonzapico.bqtest.data.Data;
 
 /**
  * Activity which displays a login screen to the user, offering registration as
@@ -81,6 +82,9 @@ public class LoginActivity extends ParentActivity {
 			mEvernoteSession.authenticate(this);
 		else
 			goToNoteList();
+		
+		// mEvernoteSession.authenticate(getApplicationContext());
+		
 
 	}
 
@@ -134,13 +138,13 @@ public class LoginActivity extends ParentActivity {
 		switch (requestCode) {
 		// Update UI when oauth activity returns result
 		case EvernoteSession.REQUEST_CODE_OAUTH:
+			goToNoteList();
 			if (resultCode == Activity.RESULT_OK) {
 				showProgress(false);
 
 				// We launch a new activity to show a list of all the notes that
 				// the user have saved in Evernote
-				ListTask lTask = new ListTask();
-				lTask.execute((Void) null);
+				goToNoteList();
 
 			}
 			break;
@@ -203,8 +207,7 @@ public class LoginActivity extends ParentActivity {
 
 			}
 
-			List2Task l2t = new List2Task();
-			l2t.execute(guid);
+			
 		}
 
 		@Override
@@ -213,119 +216,18 @@ public class LoginActivity extends ParentActivity {
 		}
 	}
 
-	public class List2Task extends AsyncTask<String, Void, NotesMetadataList> {
-		@Override
-		protected NotesMetadataList doInBackground(String... params) {
-
-			String authToken = mEvernoteSession.getAuthenticationResult()
-					.getAuthToken();
-			String noteStoreUrl = mEvernoteSession.getAuthenticationResult()
-					.getNoteStoreUrl();
-
-			String userAgent = "ALTEN" + " " + "bqTest" + "/" + "1.0";
-
-			THttpClient noteStoreTrans = null;
-			try {
-				noteStoreTrans = new THttpClient(noteStoreUrl);
-			} catch (TTransportException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
-			// userStoreTrans.setCustomHeader("User-Agent", userAgent);
-			TBinaryProtocol noteStoreProt = new TBinaryProtocol(noteStoreTrans);
-			NoteStore.Client noteStore = new NoteStore.Client(noteStoreProt,
-					noteStoreProt);
-
-			int pageSize = 10;
-
-			NoteFilter filter = new NoteFilter();
-			// filter.setOrder(NoteSortOrder.CREATED.getValue());
-			// filter.setNotebookGuid(params[0]);
-
-			NotesMetadataResultSpec spec = new NotesMetadataResultSpec();
-			spec.setIncludeTitle(true);
-			NotesMetadataList notes = new NotesMetadataList();
-
-			try {
-				/*
-				 * notes = noteStore.findNotesMetadata(authToken, filter, 0,
-				 * pageSize, spec);
-				 */
-				notes = noteStore.findNotesMetadata(authToken, filter, 0, 100,
-						spec);
-				int matchingNotes = notes.getTotalNotes();
-				Log.d("notas", "numero notas --> " + matchingNotes);
-				int notesThisPage = notes.getNotes().size();
-				Log.d("notas", "numero notas --> " + notesThisPage);
-
-			} catch (EDAMUserException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			} catch (EDAMSystemException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			} catch (EDAMNotFoundException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			} catch (TException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
-
-			// findNotesByQuery("");
-			for (NoteMetadata note : notes.getNotes()) {
-				try {
-					Log.d("Notas copon",
-							note.getTitle()
-									+ " & "
-									+ noteStore
-											.getNote(authToken, note.getGuid(),
-													true, false, false, false)
-											.getContent().toString());
-				} catch (EDAMUserException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				} catch (EDAMSystemException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				} catch (EDAMNotFoundException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				} catch (TException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				}
-
-			}
-
-			return notes;
-		}
-
-		@Override
-		protected void onPostExecute(final NotesMetadataList notes) {
-
-			for (NoteMetadata note : notes.getNotes()) {
-				Log.d("Notas copon",
-						note.getTitle() + " & " + note.getNotebookGuid());
-
-			}
-		}
-
-		@Override
-		protected void onCancelled() {
-			showProgress(false);
-		}
-	}
+	
 
 	/***
 	 * Method to go the activity where we will show the list of the notes of the
 	 * user on Evernote
 	 */
 	public void goToNoteList() {
+		Data.evernoteSession = mEvernoteSession;
 		Intent intent = new Intent(this, NoteListActivity.class);
 		startActivity(intent);
 		showProgress(false);
-		finish();
+		// finish();
 	}
 
 }

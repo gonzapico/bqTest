@@ -1,38 +1,317 @@
 package com.gonzapico.bqtest;
 
-import android.os.Bundle;
-import android.app.Activity;
-import android.view.Menu;
-import android.view.MenuItem;
-import android.support.v4.app.NavUtils;
-import android.annotation.TargetApi;
-import android.os.Build;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 
-public class NoteListActivity extends Activity {
+import android.app.Activity;
+import android.os.AsyncTask;
+import android.os.Bundle;
+import android.os.Handler;
+import android.os.Message;
+import android.util.Log;
+import android.view.View;
+import android.widget.AdapterView;
+import android.widget.AdapterView.OnItemSelectedListener;
+import android.widget.ArrayAdapter;
+import android.widget.LinearLayout;
+import android.widget.ListView;
+import android.widget.Spinner;
+import android.widget.Toast;
+
+import com.evernote.edam.error.EDAMNotFoundException;
+import com.evernote.edam.error.EDAMSystemException;
+import com.evernote.edam.error.EDAMUserException;
+import com.evernote.edam.notestore.NoteFilter;
+import com.evernote.edam.notestore.NoteMetadata;
+import com.evernote.edam.notestore.NoteStore;
+import com.evernote.edam.notestore.NotesMetadataList;
+import com.evernote.edam.notestore.NotesMetadataResultSpec;
+import com.evernote.edam.type.Note;
+import com.evernote.thrift.TException;
+import com.evernote.thrift.protocol.TBinaryProtocol;
+import com.evernote.thrift.transport.THttpClient;
+import com.evernote.thrift.transport.TTransportException;
+import com.gonzapico.bqtest.adapter.NoteAdapter;
+import com.gonzapico.bqtest.data.Data;
+
+/***
+ * Class to show an ordered list of the notes of the user on Evernote depends on
+ * the choice of the spinner.
+ * 
+ * @author gonzapico
+ * 
+ */
+public class NoteListActivity extends Activity implements
+		OnItemSelectedListener {
+
+	public static final int LIST_LOADED = 0;
+	public static final int ORDER_BY_NAME = 1;
+	public static final int ORDER_BY_DATE = 2;
+
+	// UI
+	LinearLayout loading;
+	ListView notesList;
+
+	// Notes arrayList
+	ArrayList<Note> listOfNotes;
+	
+	ArrayAdapter<Note> notesAdapter;
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.activity_note_list);
-		// Show the Up button in the action bar.
-		setupActionBar();
+
+		listOfNotes = new ArrayList<Note>();
+
+		loading = (LinearLayout) this.findViewById(R.id.status);
+		notesList = (ListView) this.findViewById(R.id.lisfOfNotes);
+
+		// Populating the spinner
+		Spinner spinnerOrder = (Spinner) this.findViewById(R.id.spinnerOrder);
+		// Create an ArrayAdapter using the string array and a default spinner
+		// layout
+		ArrayAdapter<CharSequence> adapter = ArrayAdapter
+				.createFromResource(this, R.array.order_array,
+						android.R.layout.simple_spinner_item);
+		// Specify the layout to use when the list of choices appears
+		adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+		// Apply the adapter to the spinner
+		spinnerOrder.setAdapter(adapter);
+		
+		spinnerOrder.setOnItemSelectedListener(new OnItemSelectedListener() {
+
+			@Override
+			public void onItemSelected(AdapterView<?> arg0, View arg1,
+					int arg2, long arg3) {
+				if (arg2 == 1){
+					Collections.sort(listOfNotes, new Comparator<Note>() {
+
+						@Override
+						public int compare(Note lhs, Note rhs) {
+							return lhs.getTitle().compareTo(rhs.getTitle());
+						}
+						
+					});
+					
+					if (!notesAdapter.equals(null))
+						notesAdapter.notifyDataSetChanged();
+				}
+				
+			}
+
+			@Override
+			public void onNothingSelected(AdapterView<?> arg0) {
+				// TODO Auto-generated method stub
+				
+			}
+		});
+
+		/*
+		 * Defining the handler that will receive the message when the data is
+		 * loaded
+		 */
+		Data.handlerNotas = new Handler() {
+			@Override
+			public void handleMessage(Message inputMessage) {
+				switch (inputMessage.arg1) {
+				case LIST_LOADED:
+					notesAdapter = new NoteAdapter(
+							getApplicationContext(), listOfNotes);
+					notesList.setAdapter(notesAdapter);
+					notesList
+							.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+
+								@Override
+								public void onItemClick(AdapterView<?> parent,
+										final View view, int position, long id) {
+									Toast.makeText(getApplicationContext(),
+											"" + view.getTag().toString(),
+											Toast.LENGTH_LONG).show();
+									Log.d("Nota Content",
+											""
+													+ listOfNotes.get(position)
+															.getContent());
+								}
+
+							});
+					showProgress(false);
+					showList(true);
+					break;
+				case ORDER_BY_NAME:
+					break;
+				case ORDER_BY_DATE:
+					break;
+
+				default:
+					break;
+				}
+			}
+		};
+
+		List2Task l2t = new List2Task();
+		l2t.execute();
+	}
+
+	public void onItemSelected(AdapterView<?> parent, View view, int pos,
+			long id) {
+		// An item was selected. You can retrieve the selected item using
+		// parent.getItemAtPosition(pos)
+	}
+
+	public void onNothingSelected(AdapterView<?> parent) {
+		// Another interface callback
 	}
 
 	/**
-	 * Set up the {@link android.app.ActionBar}, if the API is available.
+	 * With this method we're showing the data on the list as the user has
+	 * choice
 	 */
-	@TargetApi(Build.VERSION_CODES.HONEYCOMB)
-	private void setupActionBar() {
-		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.HONEYCOMB) {
-			getActionBar().setDisplayHomeAsUpEnabled(true);
+	public void loadDataAndShowList() {
+
+	}
+
+	public class List2Task extends AsyncTask<Void, Void, Void> {
+		@Override
+		protected Void doInBackground(Void... params) {
+
+			String authToken = Data.evernoteSession.getAuthenticationResult()
+					.getAuthToken();
+			String noteStoreUrl = Data.evernoteSession
+					.getAuthenticationResult().getNoteStoreUrl();
+
+			String userAgent = "ALTEN" + " " + "bqTest" + "/" + "1.0";
+
+			THttpClient noteStoreTrans = null;
+			try {
+				noteStoreTrans = new THttpClient(noteStoreUrl);
+			} catch (TTransportException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			// userStoreTrans.setCustomHeader("User-Agent", userAgent);
+			TBinaryProtocol noteStoreProt = new TBinaryProtocol(noteStoreTrans);
+			NoteStore.Client noteStore = new NoteStore.Client(noteStoreProt,
+					noteStoreProt);
+
+			int pageSize = 10;
+
+			NoteFilter filter = new NoteFilter();
+			// filter.setOrder(NoteSortOrder.CREATED.getValue());
+			// filter.setNotebookGuid(params[0]);
+
+			NotesMetadataResultSpec spec = new NotesMetadataResultSpec();
+			spec.setIncludeTitle(true);
+			NotesMetadataList notes = new NotesMetadataList();
+
+			try {
+				/*
+				 * notes = noteStore.findNotesMetadata(authToken, filter, 0,
+				 * pageSize, spec);
+				 */
+				notes = noteStore.findNotesMetadata(authToken, filter, 0, 100,
+						spec);
+				int matchingNotes = notes.getTotalNotes();
+				Log.d("notas", "numero notas --> " + matchingNotes);
+				int notesThisPage = notes.getNotes().size();
+				Log.d("notas", "numero notas --> " + notesThisPage);
+
+			} catch (EDAMUserException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			} catch (EDAMSystemException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			} catch (EDAMNotFoundException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			} catch (TException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+
+			// findNotesByQuery("");
+			for (NoteMetadata note : notes.getNotes()) {
+				try {
+					Log.d("Notas copon",
+							note.getTitle()
+									+ " & "
+									+ noteStore
+											.getNote(authToken, note.getGuid(),
+													true, false, false, false)
+											.getContent().toString());
+					if (!noteStore
+							.getNote(authToken, note.getGuid(), true, false,
+									false, false).getContent().toString()
+							.equals(null))
+						listOfNotes.add(noteStore.getNote(authToken,
+								note.getGuid(), true, false, false, false));
+
+				} catch (EDAMUserException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				} catch (EDAMSystemException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				} catch (EDAMNotFoundException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				} catch (TException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+
+			}
+			return null;
+
+		}
+
+		@Override
+		protected void onPostExecute(Void arg) {
+
+			Message msg = new Message();
+			msg.arg1 = LIST_LOADED;
+			Data.handlerNotas.sendMessage(msg);
+			
+		}
+
+		@Override
+		protected void onCancelled() {
+			// showProgress(false);
+
+		}
+
+		@Override
+		protected void onPreExecute() {
+			showProgress(true);
+			showList(false);
 		}
 	}
 
-	@Override
-	public boolean onCreateOptionsMenu(Menu menu) {
-		// Inflate the menu; this adds items to the action bar if it is present.
-		getMenuInflater().inflate(R.menu.note_list, menu);
-		return true;
+	/**
+	 * Method to show the progress loading or hide it
+	 * 
+	 * @param show
+	 */
+	public void showProgress(boolean show) {
+		if (show)
+			loading.setVisibility(View.VISIBLE);
+		else
+			loading.setVisibility(View.INVISIBLE);
+
+	}
+
+	/**
+	 * Method to show or hide the list of the notes
+	 * 
+	 * @param show
+	 */
+	public void showList(boolean show) {
+		if (show)
+			notesList.setVisibility(View.VISIBLE);
+		else
+			notesList.setVisibility(View.INVISIBLE);
 	}
 
 }
