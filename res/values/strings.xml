@@ -42,5 +42,11 @@
     <string name="ERROR_GETTING_LINKED_NOTEBOOK">Error getting linked notebook</string>
     <string name="title_activity_note_list">NoteListActivity</string>
     <string name="hello_world">Hello world!</string>
+    <string name="title_activity_note">NoteActivity</string>
+    <string name="crear_nota">Crear Nueva Nota</string>
+    <string name="title_activity_new">NewActivity</string>
+    <string name="title">Title</string>
+    <string name="content">Content</string>
+    <string name="save">Save</string>
 
 </resources>

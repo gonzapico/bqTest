@@ -5,6 +5,7 @@ import java.util.Collections;
 import java.util.Comparator;
 
 import android.app.Activity;
+import android.content.Intent;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Handler;
@@ -17,8 +18,8 @@ import android.widget.ArrayAdapter;
 import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.Spinner;
-import android.widget.Toast;
 
+import com.evernote.client.android.InvalidAuthenticationException;
 import com.evernote.edam.error.EDAMNotFoundException;
 import com.evernote.edam.error.EDAMSystemException;
 import com.evernote.edam.error.EDAMUserException;
@@ -42,8 +43,7 @@ import com.gonzapico.bqtest.data.Data;
  * @author gonzapico
  * 
  */
-public class NoteListActivity extends Activity implements
-		OnItemSelectedListener {
+public class NoteListActivity extends Activity{
 
 	public static final int LIST_LOADED = 0;
 	public static final int ORDER_BY_NAME = 1;
@@ -55,8 +55,10 @@ public class NoteListActivity extends Activity implements
 
 	// Notes arrayList
 	ArrayList<Note> listOfNotes;
-	
+
 	ArrayAdapter<Note> notesAdapter;
+
+	public boolean isFirstLoaded = false;
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -67,6 +69,8 @@ public class NoteListActivity extends Activity implements
 
 		loading = (LinearLayout) this.findViewById(R.id.status);
 		notesList = (ListView) this.findViewById(R.id.lisfOfNotes);
+
+		isFirstLoaded = false;
 
 		// Populating the spinner
 		Spinner spinnerOrder = (Spinner) this.findViewById(R.id.spinnerOrder);
@@ -79,32 +83,65 @@ public class NoteListActivity extends Activity implements
 		adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
 		// Apply the adapter to the spinner
 		spinnerOrder.setAdapter(adapter);
-		
+
 		spinnerOrder.setOnItemSelectedListener(new OnItemSelectedListener() {
 
 			@Override
 			public void onItemSelected(AdapterView<?> arg0, View arg1,
 					int arg2, long arg3) {
-				if (arg2 == 1){
-					Collections.sort(listOfNotes, new Comparator<Note>() {
+				if (isFirstLoaded)
+					if (arg2 == 0) {
+						showProgress(true);
+						showList(false);
+						Collections.sort(listOfNotes, new Comparator<Note>() {
 
-						@Override
-						public int compare(Note lhs, Note rhs) {
-							return lhs.getTitle().compareTo(rhs.getTitle());
-						}
-						
-					});
-					
-					if (!notesAdapter.equals(null))
-						notesAdapter.notifyDataSetChanged();
-				}
-				
+							@Override
+							public int compare(Note lhs, Note rhs) {
+
+								return lhs
+										.getTitle()
+										.toLowerCase()
+										.compareTo(rhs.getTitle().toLowerCase());
+							}
+
+						});
+
+						Message msg = new Message();
+						msg.arg1 = ORDER_BY_NAME;
+						Data.handlerNotas.sendMessage(msg);
+
+					} else if (arg2 == 1) {
+						showProgress(true);
+						showList(false);
+						Collections.sort(listOfNotes, new Comparator<Note>() {
+
+							@Override
+							public int compare(Note lhs, Note rhs) {
+								long timeToCompareL = 0;
+								long timeToCompareR = 0;
+								if (lhs.getCreated() == lhs.getUpdated()) {
+									timeToCompareL = lhs.getCreated();
+								} else if (lhs.getUpdated() > lhs.getCreated()) {
+									timeToCompareL = lhs.getUpdated();
+								}
+								if (rhs.getCreated() == rhs.getUpdated()) {
+									timeToCompareR = rhs.getCreated();
+								} else if (rhs.getUpdated() > rhs.getCreated()) {
+									timeToCompareR = rhs.getUpdated();
+								}
+								return (timeToCompareL > timeToCompareR ? 1
+										: (timeToCompareL == timeToCompareR ? 0
+												: -1));
+							}
+
+						});
+					}
+
 			}
 
 			@Override
 			public void onNothingSelected(AdapterView<?> arg0) {
-				// TODO Auto-generated method stub
-				
+
 			}
 		});
 
@@ -117,8 +154,8 @@ public class NoteListActivity extends Activity implements
 			public void handleMessage(Message inputMessage) {
 				switch (inputMessage.arg1) {
 				case LIST_LOADED:
-					notesAdapter = new NoteAdapter(
-							getApplicationContext(), listOfNotes);
+					notesAdapter = new NoteAdapter(getApplicationContext(),
+							listOfNotes);
 					notesList.setAdapter(notesAdapter);
 					notesList
 							.setOnItemClickListener(new AdapterView.OnItemClickListener() {
@@ -126,22 +163,31 @@ public class NoteListActivity extends Activity implements
 								@Override
 								public void onItemClick(AdapterView<?> parent,
 										final View view, int position, long id) {
-									Toast.makeText(getApplicationContext(),
-											"" + view.getTag().toString(),
-											Toast.LENGTH_LONG).show();
-									Log.d("Nota Content",
-											""
-													+ listOfNotes.get(position)
-															.getContent());
+
+									// Showing the content
+									Intent i = new Intent(
+											getApplicationContext(),
+											NoteActivity.class);
+									i.putExtra("Content",
+											listOfNotes.get(position)
+													.getContent().toString());
+									startActivity(i);
 								}
 
 							});
 					showProgress(false);
 					showList(true);
+					isFirstLoaded = true;
 					break;
 				case ORDER_BY_NAME:
+					notesAdapter.notifyDataSetChanged();
+					showProgress(false);
+					showList(true);
 					break;
 				case ORDER_BY_DATE:
+					notesAdapter.notifyDataSetChanged();
+					showProgress(false);
+					showList(true);
 					break;
 
 				default:
@@ -150,66 +196,45 @@ public class NoteListActivity extends Activity implements
 			}
 		};
 
-		List2Task l2t = new List2Task();
-		l2t.execute();
-	}
-
-	public void onItemSelected(AdapterView<?> parent, View view, int pos,
-			long id) {
-		// An item was selected. You can retrieve the selected item using
-		// parent.getItemAtPosition(pos)
-	}
-
-	public void onNothingSelected(AdapterView<?> parent) {
-		// Another interface callback
+		GetNotesTask g2t = new GetNotesTask();
+		g2t.execute();
 	}
 
 	/**
-	 * With this method we're showing the data on the list as the user has
-	 * choice
+	 * AsyncTask to get the notes of the user who has logged in on the app
+	 * @author gonzapico
+	 *
 	 */
-	public void loadDataAndShowList() {
-
-	}
-
-	public class List2Task extends AsyncTask<Void, Void, Void> {
+	public class GetNotesTask extends AsyncTask<Void, Void, Void> {
 		@Override
 		protected Void doInBackground(Void... params) {
+
+			listOfNotes.clear();
 
 			String authToken = Data.evernoteSession.getAuthenticationResult()
 					.getAuthToken();
 			String noteStoreUrl = Data.evernoteSession
 					.getAuthenticationResult().getNoteStoreUrl();
 
-			String userAgent = "ALTEN" + " " + "bqTest" + "/" + "1.0";
 
 			THttpClient noteStoreTrans = null;
 			try {
 				noteStoreTrans = new THttpClient(noteStoreUrl);
 			} catch (TTransportException e) {
-				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
-			// userStoreTrans.setCustomHeader("User-Agent", userAgent);
 			TBinaryProtocol noteStoreProt = new TBinaryProtocol(noteStoreTrans);
 			NoteStore.Client noteStore = new NoteStore.Client(noteStoreProt,
 					noteStoreProt);
 
-			int pageSize = 10;
 
 			NoteFilter filter = new NoteFilter();
-			// filter.setOrder(NoteSortOrder.CREATED.getValue());
-			// filter.setNotebookGuid(params[0]);
 
 			NotesMetadataResultSpec spec = new NotesMetadataResultSpec();
 			spec.setIncludeTitle(true);
 			NotesMetadataList notes = new NotesMetadataList();
 
 			try {
-				/*
-				 * notes = noteStore.findNotesMetadata(authToken, filter, 0,
-				 * pageSize, spec);
-				 */
 				notes = noteStore.findNotesMetadata(authToken, filter, 0, 100,
 						spec);
 				int matchingNotes = notes.getTotalNotes();
@@ -231,16 +256,8 @@ public class NoteListActivity extends Activity implements
 				e.printStackTrace();
 			}
 
-			// findNotesByQuery("");
 			for (NoteMetadata note : notes.getNotes()) {
 				try {
-					Log.d("Notas copon",
-							note.getTitle()
-									+ " & "
-									+ noteStore
-											.getNote(authToken, note.getGuid(),
-													true, false, false, false)
-											.getContent().toString());
 					if (!noteStore
 							.getNote(authToken, note.getGuid(), true, false,
 									false, false).getContent().toString()
@@ -252,7 +269,10 @@ public class NoteListActivity extends Activity implements
 					// TODO Auto-generated catch block
 					e.printStackTrace();
 				} catch (EDAMSystemException e) {
-					// TODO Auto-generated catch block
+					// Going back to the login to authenticate again
+					Intent i = new Intent(getApplicationContext(), LoginActivity.class);
+					startActivity(i);
+					finish();
 					e.printStackTrace();
 				} catch (EDAMNotFoundException e) {
 					// TODO Auto-generated catch block
@@ -273,7 +293,7 @@ public class NoteListActivity extends Activity implements
 			Message msg = new Message();
 			msg.arg1 = LIST_LOADED;
 			Data.handlerNotas.sendMessage(msg);
-			
+
 		}
 
 		@Override
@@ -312,6 +332,40 @@ public class NoteListActivity extends Activity implements
 			notesList.setVisibility(View.VISIBLE);
 		else
 			notesList.setVisibility(View.INVISIBLE);
+	}
+
+	public void newNote(View v) {
+		Intent i = new Intent(getApplicationContext(), CreateNoteActivity.class);
+		startActivityForResult(i, 1);
+	}
+
+	protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+
+		if (requestCode == 1) {
+			if (resultCode == RESULT_OK) {
+				boolean result = data.getBooleanExtra("result", true);
+				if (result) {
+					GetNotesTask g2t = new GetNotesTask();
+					g2t.execute();
+				}
+
+			}
+			if (resultCode == RESULT_CANCELED) {
+				// Write your code if there's no result
+			}
+		}
+	}// onActivityResult
+
+	@Override 
+	public void onBackPressed() {
+		// Every time you go back from here, you're logging out
+		try {
+			Data.evernoteSession.logOut(getApplicationContext());
+		} catch (InvalidAuthenticationException e) {
+			e.printStackTrace();
+		}
+		// Otherwise defer to system default behavior.
+		super.onBackPressed();
 	}
 
 }

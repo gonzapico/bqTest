@@ -5,3 +5,9 @@ In this screen we show the user the way to log in into the app. If it's the firs
 
 - NoteListActivity
 Activity where we get all the notes of the user who has logged in on Evernote and will show them on a list. He/she could change the order of the list with a spinner. 
+
+- NoteActivity
+Activity to show the content of the note that the user wants to see.
+
+- CreateNoteActivity
+Activity to create a new note and show it when you're getting back of the list of notes.

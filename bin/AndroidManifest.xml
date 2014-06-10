@@ -18,8 +18,8 @@
         <activity
             android:name="com.gonzapico.bqtest.LoginActivity"
             android:label="@string/app_name"
-            android:windowSoftInputMode="adjustResize|stateVisible"
-            android:noHistory="true" >
+            android:noHistory="true"
+            android:windowSoftInputMode="adjustResize|stateVisible" >
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
@@ -36,6 +36,22 @@
             <meta-data
                 android:name="android.support.PARENT_ACTIVITY"
                 android:value="com.gonzapico.bqtest.LoginActivity" />
+        </activity>
+        <activity
+            android:name="com.gonzapico.bqtest.NoteActivity"
+            android:label="@string/app_name"
+            android:parentActivityName="com.gonzapico.bqtest.NoteListActivity" >
+            <meta-data
+                android:name="android.support.PARENT_ACTIVITY"
+                android:value="com.gonzapico.bqtest.NoteListActivity" />
+        </activity>
+        <activity
+            android:name="com.gonzapico.bqtest.CreateNoteActivity"
+            android:label="@string/app_name"
+            android:parentActivityName="com.gonzapico.bqtest.NoteListActivity" >
+            <meta-data
+                android:name="android.support.PARENT_ACTIVITY"
+                android:value="com.gonzapico.bqtest.NoteListActivity" />
         </activity>
     </application>
 

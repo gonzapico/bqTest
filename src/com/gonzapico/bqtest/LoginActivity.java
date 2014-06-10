@@ -79,12 +79,9 @@ public class LoginActivity extends ParentActivity {
 		 * Evernote. Otherwise, we go to the next activity to show his/her notes
 		 */
 		if (!mEvernoteSession.isLoggedIn())
-			mEvernoteSession.authenticate(this);
+			mEvernoteSession.authenticate(getApplicationContext());
 		else
 			goToNoteList();
-		
-		// mEvernoteSession.authenticate(getApplicationContext());
-		
 
 	}
 
@@ -138,7 +135,6 @@ public class LoginActivity extends ParentActivity {
 		switch (requestCode) {
 		// Update UI when oauth activity returns result
 		case EvernoteSession.REQUEST_CODE_OAUTH:
-			goToNoteList();
 			if (resultCode == Activity.RESULT_OK) {
 				showProgress(false);
 
@@ -151,72 +147,6 @@ public class LoginActivity extends ParentActivity {
 		}
 	}
 
-	/**
-	 * Represents an asynchronous login/registration task used to authenticate
-	 * the user.
-	 */
-	public class ListTask extends AsyncTask<Void, Void, ArrayList<Notebook>> {
-		@Override
-		protected ArrayList<Notebook> doInBackground(Void... params) {
-
-			String authToken = mEvernoteSession.getAuthenticationResult()
-					.getAuthToken();
-			String noteStoreUrl = mEvernoteSession.getAuthenticationResult()
-					.getNoteStoreUrl();
-
-			String userAgent = "ALTEN" + " " + "bqTest" + "/" + "1.0";
-
-			THttpClient noteStoreTrans = null;
-			try {
-				noteStoreTrans = new THttpClient(noteStoreUrl);
-			} catch (TTransportException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
-			// userStoreTrans.setCustomHeader("User-Agent", userAgent);
-			TBinaryProtocol noteStoreProt = new TBinaryProtocol(noteStoreTrans);
-			NoteStore.Client noteStore = new NoteStore.Client(noteStoreProt,
-					noteStoreProt);
-			List<Notebook> notebooks = new ArrayList<Notebook>();
-			try {
-				notebooks = noteStore.listNotebooks(authToken);
-			} catch (EDAMUserException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			} catch (EDAMSystemException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			} catch (TException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
-
-			int pageSize = 10;
-
-			return (ArrayList<Notebook>) notebooks;
-		}
-
-		@Override
-		protected void onPostExecute(final ArrayList<Notebook> notas) {
-			String guid = "";
-			for (Notebook notebook : notas) {
-
-				Log.d("NOTAS", "Notebook: " + notebook.getName() + " y "
-						+ notebook.getSharedNotebooksSize());
-				guid = notebook.getGuid();
-
-			}
-
-			
-		}
-
-		@Override
-		protected void onCancelled() {
-			showProgress(false);
-		}
-	}
-
-	
 
 	/***
 	 * Method to go the activity where we will show the list of the notes of the
@@ -227,7 +157,6 @@ public class LoginActivity extends ParentActivity {
 		Intent intent = new Intent(this, NoteListActivity.class);
 		startActivity(intent);
 		showProgress(false);
-		// finish();
 	}
 
 }
