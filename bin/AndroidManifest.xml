@@ -18,8 +18,7 @@
         <activity
             android:name="com.gonzapico.bqtest.LoginActivity"
             android:label="@string/app_name"
-            android:noHistory="true"
-            android:windowSoftInputMode="adjustResize|stateVisible" >
+            android:noHistory="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 

@@ -11,3 +11,6 @@ Activity to show the content of the note that the user wants to see.
 
 - CreateNoteActivity
 Activity to create a new note and show it when you're getting back of the list of notes.
+
+**
+We haven't implemented the writing note manually but I haven't time yet. It'd be a new screen and you should write out your note with your finger. So, you should have selected if you wanted to create a new note with the keyboard or manually.

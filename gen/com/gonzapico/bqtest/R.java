@@ -59,11 +59,12 @@ public final class R {
         public static final int CANNOT_GET_LINKED_NOTEBOOK=0x7f04002a;
         public static final int CANT_LIST_APP_LNB=0x7f04002b;
         public static final int ERROR_GETTING_LINKED_NOTEBOOK=0x7f04002c;
-        public static final int action_forgot_password=0x7f040038;
+        public static final int action_forgot_password=0x7f040039;
         public static final int action_settings=0x7f040009;
-        public static final int action_sign_in_register=0x7f040036;
-        public static final int action_sign_in_short=0x7f040037;
+        public static final int action_sign_in_register=0x7f040037;
+        public static final int action_sign_in_short=0x7f040038;
         public static final int app_name=0x7f040007;
+        public static final int auth_expired=0x7f040033;
         public static final int content=0x7f04001d;
         public static final int crear_nota=0x7f040030;
         public static final int empty_content_error=0x7f04001e;
@@ -71,10 +72,10 @@ public final class R {
         public static final int err_image_selected=0x7f040011;
         public static final int err_retrieving_resource=0x7f040012;
         public static final int error_creating_notestore=0x7f040027;
-        public static final int error_field_required=0x7f04003d;
-        public static final int error_incorrect_password=0x7f04003c;
-        public static final int error_invalid_email=0x7f04003a;
-        public static final int error_invalid_password=0x7f04003b;
+        public static final int error_field_required=0x7f04003f;
+        public static final int error_incorrect_password=0x7f04003e;
+        public static final int error_invalid_email=0x7f04003c;
+        public static final int error_invalid_password=0x7f04003d;
         public static final int error_listing_notebooks=0x7f040026;
         public static final int error_listing_notes=0x7f040029;
         public static final int error_saving_note=0x7f040028;
@@ -100,7 +101,8 @@ public final class R {
         public static final int label_search=0x7f040017;
         public static final int label_select_button=0x7f04000e;
         public static final int label_select_notebook_button=0x7f04001b;
-        public static final int login_progress_signing_in=0x7f040039;
+        public static final int loading_progress=0x7f04003b;
+        public static final int login_progress_signing_in=0x7f04003a;
         public static final int msg_image_saved=0x7f04000c;
         public static final int msg_retrieved_resource=0x7f040013;
         public static final int note_saved=0x7f04001f;
@@ -108,14 +110,14 @@ public final class R {
         public static final int ok=0x7f040021;
         /**  Strings related to login 
          */
-        public static final int prompt_email=0x7f040034;
-        public static final int prompt_password=0x7f040035;
+        public static final int prompt_email=0x7f040035;
+        public static final int prompt_password=0x7f040036;
         public static final int save=0x7f040032;
         public static final int search_hint=0x7f040025;
         public static final int search_notes=0x7f040024;
         public static final int simple_note=0x7f040022;
         public static final int title=0x7f04001c;
-        public static final int title_activity_login=0x7f040033;
+        public static final int title_activity_login=0x7f040034;
         public static final int title_activity_main=0x7f040008;
         public static final int title_activity_new=0x7f040031;
         public static final int title_activity_note=0x7f04002f;

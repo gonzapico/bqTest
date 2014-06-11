@@ -10,7 +10,6 @@ import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
-import android.util.Log;
 import android.view.View;
 import android.widget.AdapterView;
 import android.widget.AdapterView.OnItemSelectedListener;
@@ -18,8 +17,10 @@ import android.widget.ArrayAdapter;
 import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.Spinner;
+import android.widget.Toast;
 
 import com.evernote.client.android.InvalidAuthenticationException;
+import com.evernote.edam.error.EDAMErrorCode;
 import com.evernote.edam.error.EDAMNotFoundException;
 import com.evernote.edam.error.EDAMSystemException;
 import com.evernote.edam.error.EDAMUserException;
@@ -43,7 +44,7 @@ import com.gonzapico.bqtest.data.Data;
  * @author gonzapico
  * 
  */
-public class NoteListActivity extends Activity{
+public class NoteListActivity extends Activity {
 
 	public static final int LIST_LOADED = 0;
 	public static final int ORDER_BY_NAME = 1;
@@ -89,6 +90,8 @@ public class NoteListActivity extends Activity{
 			@Override
 			public void onItemSelected(AdapterView<?> arg0, View arg1,
 					int arg2, long arg3) {
+				// If the list of notes is loaded, then we can select the way we
+				// want to sort the list
 				if (isFirstLoaded)
 					if (arg2 == 0) {
 						showProgress(true);
@@ -135,13 +138,16 @@ public class NoteListActivity extends Activity{
 							}
 
 						});
+
+						Message msg = new Message();
+						msg.arg1 = ORDER_BY_DATE;
+						Data.handlerNotas.sendMessage(msg);
 					}
 
 			}
 
 			@Override
 			public void onNothingSelected(AdapterView<?> arg0) {
-
 			}
 		});
 
@@ -202,12 +208,13 @@ public class NoteListActivity extends Activity{
 
 	/**
 	 * AsyncTask to get the notes of the user who has logged in on the app
+	 * 
 	 * @author gonzapico
-	 *
+	 * 
 	 */
-	public class GetNotesTask extends AsyncTask<Void, Void, Void> {
+	public class GetNotesTask extends AsyncTask<Void, Void, Boolean> {
 		@Override
-		protected Void doInBackground(Void... params) {
+		protected Boolean doInBackground(Void... params) {
 
 			listOfNotes.clear();
 
@@ -215,7 +222,6 @@ public class NoteListActivity extends Activity{
 					.getAuthToken();
 			String noteStoreUrl = Data.evernoteSession
 					.getAuthenticationResult().getNoteStoreUrl();
-
 
 			THttpClient noteStoreTrans = null;
 			try {
@@ -227,7 +233,6 @@ public class NoteListActivity extends Activity{
 			NoteStore.Client noteStore = new NoteStore.Client(noteStoreProt,
 					noteStoreProt);
 
-
 			NoteFilter filter = new NoteFilter();
 
 			NotesMetadataResultSpec spec = new NotesMetadataResultSpec();
@@ -237,14 +242,42 @@ public class NoteListActivity extends Activity{
 			try {
 				notes = noteStore.findNotesMetadata(authToken, filter, 0, 100,
 						spec);
-				int matchingNotes = notes.getTotalNotes();
-				Log.d("notas", "numero notas --> " + matchingNotes);
-				int notesThisPage = notes.getNotes().size();
-				Log.d("notas", "numero notas --> " + notesThisPage);
+
+				for (NoteMetadata note : notes.getNotes()) {
+					try {
+						if (!noteStore
+								.getNote(authToken, note.getGuid(), true,
+										false, false, false).getContent()
+								.toString().equals(null))
+							listOfNotes.add(noteStore.getNote(authToken,
+									note.getGuid(), true, false, false, false));
+
+					} catch (EDAMUserException e) {
+						// If the auth has expired then we must go to the login
+						// screen
+						if (e.getErrorCode() == EDAMErrorCode.AUTH_EXPIRED) {
+							// Going back to the login to authenticate again
+							return false;
+						}
+					} catch (EDAMSystemException e) {
+
+						e.printStackTrace();
+					} catch (EDAMNotFoundException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					} catch (TException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
+				}
 
 			} catch (EDAMUserException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
+				// If the auth has expired then we must go to the login
+				// screen
+				if (e.getErrorCode() == EDAMErrorCode.AUTH_EXPIRED) {
+					// Going back to the login to authenticate again
+					return false;
+				}
 			} catch (EDAMSystemException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
@@ -256,43 +289,32 @@ public class NoteListActivity extends Activity{
 				e.printStackTrace();
 			}
 
-			for (NoteMetadata note : notes.getNotes()) {
-				try {
-					if (!noteStore
-							.getNote(authToken, note.getGuid(), true, false,
-									false, false).getContent().toString()
-							.equals(null))
-						listOfNotes.add(noteStore.getNote(authToken,
-								note.getGuid(), true, false, false, false));
-
-				} catch (EDAMUserException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				} catch (EDAMSystemException e) {
-					// Going back to the login to authenticate again
-					Intent i = new Intent(getApplicationContext(), LoginActivity.class);
-					startActivity(i);
-					finish();
-					e.printStackTrace();
-				} catch (EDAMNotFoundException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				} catch (TException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				}
-
-			}
-			return null;
+			return true;
 
 		}
 
 		@Override
-		protected void onPostExecute(Void arg) {
+		protected void onPostExecute(Boolean arg) {
 
-			Message msg = new Message();
-			msg.arg1 = LIST_LOADED;
-			Data.handlerNotas.sendMessage(msg);
+			if (arg) {
+				Message msg = new Message();
+				msg.arg1 = LIST_LOADED;
+				Data.handlerNotas.sendMessage(msg);
+			} else {
+				Toast.makeText(getApplicationContext(),
+						getResources().getString(R.string.auth_expired),
+						Toast.LENGTH_LONG).show();
+				try {
+					Data.evernoteSession.logOut(getApplicationContext());
+				} catch (InvalidAuthenticationException e1) {
+					// TODO Auto-generated catch block
+					e1.printStackTrace();
+				}
+				Intent i = new Intent(getApplicationContext(),
+						LoginActivity.class);
+				startActivity(i);
+				finish();
+			}
 
 		}
 
@@ -334,13 +356,19 @@ public class NoteListActivity extends Activity{
 			notesList.setVisibility(View.INVISIBLE);
 	}
 
+	/**
+	 * Method to call the activity where you can create and save a new note
+	 * 
+	 * @param v
+	 */
 	public void newNote(View v) {
 		Intent i = new Intent(getApplicationContext(), CreateNoteActivity.class);
 		startActivityForResult(i, 1);
 	}
 
+	@Override
 	protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-
+		// Loading again the list of notes when we have saved a new one
 		if (requestCode == 1) {
 			if (resultCode == RESULT_OK) {
 				boolean result = data.getBooleanExtra("result", true);
@@ -355,17 +383,5 @@ public class NoteListActivity extends Activity{
 			}
 		}
 	}// onActivityResult
-
-	@Override 
-	public void onBackPressed() {
-		// Every time you go back from here, you're logging out
-		try {
-			Data.evernoteSession.logOut(getApplicationContext());
-		} catch (InvalidAuthenticationException e) {
-			e.printStackTrace();
-		}
-		// Otherwise defer to system default behavior.
-		super.onBackPressed();
-	}
 
 }

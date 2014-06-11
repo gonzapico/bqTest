@@ -28,8 +28,9 @@ package com.gonzapico.bqtest;
 import java.util.List;
 
 import android.app.Activity;
+import android.app.Dialog;
+import android.app.ProgressDialog;
 import android.os.Bundle;
-import android.util.Log;
 import android.util.Pair;
 import android.widget.Toast;
 
@@ -64,6 +65,7 @@ public class ParentActivity extends Activity {
 	private static final boolean SUPPORT_APP_LINKED_NOTEBOOKS = true;
 
 	protected EvernoteSession mEvernoteSession;
+	protected final int DIALOG_PROGRESS = 101;
 
 	public void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
@@ -72,6 +74,30 @@ public class ParentActivity extends Activity {
 		mEvernoteSession = EvernoteSession
 				.getInstance(this, CONSUMER_KEY, CONSUMER_SECRET,
 						EVERNOTE_SERVICE, SUPPORT_APP_LINKED_NOTEBOOKS);
+
+	}
+
+	// using createDialog, could use Fragments instead
+	@SuppressWarnings("deprecation")
+	@Override
+	protected Dialog onCreateDialog(int id) {
+		switch (id) {
+		case DIALOG_PROGRESS:
+			return new ProgressDialog(ParentActivity.this);
+		}
+		return super.onCreateDialog(id);
+	}
+
+	@Override
+	@SuppressWarnings("deprecation")
+	protected void onPrepareDialog(int id, Dialog dialog) {
+		switch (id) {
+		case DIALOG_PROGRESS:
+			((ProgressDialog) dialog).setIndeterminate(true);
+			dialog.setCancelable(false);
+			((ProgressDialog) dialog)
+					.setMessage(getString(R.string.esdk__loading));
+		}
 	}
 
 	/**

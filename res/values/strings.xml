@@ -48,5 +48,6 @@
     <string name="title">Title</string>
     <string name="content">Content</string>
     <string name="save">Save</string>
+    <string name="auth_expired">Auth expired, you should login again!</string>
 
 </resources>

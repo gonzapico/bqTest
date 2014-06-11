@@ -1,34 +1,16 @@
 package com.gonzapico.bqtest;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import android.animation.Animator;
 import android.animation.AnimatorListenerAdapter;
 import android.annotation.TargetApi;
 import android.app.Activity;
 import android.content.Intent;
-import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
-import android.util.Log;
 import android.view.View;
 import android.widget.TextView;
 
 import com.evernote.client.android.EvernoteSession;
-import com.evernote.edam.error.EDAMNotFoundException;
-import com.evernote.edam.error.EDAMSystemException;
-import com.evernote.edam.error.EDAMUserException;
-import com.evernote.edam.notestore.NoteFilter;
-import com.evernote.edam.notestore.NoteMetadata;
-import com.evernote.edam.notestore.NoteStore;
-import com.evernote.edam.notestore.NotesMetadataList;
-import com.evernote.edam.notestore.NotesMetadataResultSpec;
-import com.evernote.edam.type.Notebook;
-import com.evernote.thrift.TException;
-import com.evernote.thrift.protocol.TBinaryProtocol;
-import com.evernote.thrift.transport.THttpClient;
-import com.evernote.thrift.transport.TTransportException;
 import com.gonzapico.bqtest.data.Data;
 
 /**
@@ -55,34 +37,18 @@ public class LoginActivity extends ParentActivity {
 		mLoginStatusView = findViewById(R.id.login_status);
 		mLoginStatusMessageView = (TextView) findViewById(R.id.login_status_message);
 
-		findViewById(R.id.sign_in_button).setOnClickListener(
-				new View.OnClickListener() {
-					@Override
-					public void onClick(View view) {
-						attemptLogin();
-					}
-				});
 	}
 
 	/**
 	 * Attempts to sign in on Evernote.
 	 */
-	public void attemptLogin() {
-
-		// Show a progress spinner, and kick off a background task to
-		// perform the user login attempt.
+	public void login(View v) {
 		mLoginStatusMessageView.setText(R.string.login_progress_signing_in);
 		showProgress(true);
-
-		/*
-		 * If the user isn't already logged in, then we authenticate him/her on
-		 * Evernote. Otherwise, we go to the next activity to show his/her notes
-		 */
 		if (!mEvernoteSession.isLoggedIn())
-			mEvernoteSession.authenticate(getApplicationContext());
+			mEvernoteSession.authenticate(this);
 		else
 			goToNoteList();
-
 	}
 
 	/**
@@ -132,12 +98,12 @@ public class LoginActivity extends ParentActivity {
 	@Override
 	public void onActivityResult(int requestCode, int resultCode, Intent data) {
 		super.onActivityResult(requestCode, resultCode, data);
+		
 		switch (requestCode) {
 		// Update UI when oauth activity returns result
 		case EvernoteSession.REQUEST_CODE_OAUTH:
 			if (resultCode == Activity.RESULT_OK) {
 				showProgress(false);
-
 				// We launch a new activity to show a list of all the notes that
 				// the user have saved in Evernote
 				goToNoteList();
@@ -145,8 +111,9 @@ public class LoginActivity extends ParentActivity {
 			}
 			break;
 		}
+		
+		
 	}
-
 
 	/***
 	 * Method to go the activity where we will show the list of the notes of the
